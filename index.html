@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NOMORA Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#0b1120;color:white;font-family:Arial;padding:20px}
@@ -21,6 +22,7 @@ button{background:#1599df;border:0;color:white;font-weight:bold}
 #message{font-size:13px}
 </style>
 </head>
+
 <body>
 
 <div class="box">
@@ -30,6 +32,7 @@ button{background:#1599df;border:0;color:white;font-weight:bold}
 <div id="auth">
 <input id="email" type="email" placeholder="Alamat email">
 <input id="password" type="password" placeholder="Password minimal 6 karakter">
+
 <button onclick="login()">LOGIN</button>
 <button class="secondary" onclick="register()">DAFTAR AKUN</button>
 </div>
@@ -42,6 +45,7 @@ button{background:#1599df;border:0;color:white;font-weight:bold}
 <input id="phone" placeholder="Contoh: +628123456789">
 <input id="country" placeholder="Negara">
 <input id="label" placeholder="Keterangan">
+
 <button onclick="addNumber()">SIMPAN NOMOR</button>
 
 <h3>Daftar nomor</h3>
@@ -54,99 +58,258 @@ button{background:#1599df;border:0;color:white;font-weight:bold}
 </div>
 
 <script>
+
 const URL="https://rcrpnpjyyakscwfbipez.supabase.co";
+
 const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcnBucGp5eWFrc2N3ZmJpcGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTkwMjksImV4cCI6MjEwOTE5NTAyOX0.6TQ9CKGl_s58Dbem2PkSTIaLNP3Hz06qASgtyyUVzlM";
+
 const db=window.supabase.createClient(URL,KEY);
 
-function msg(t){document.getElementById("message").textContent=t}
+function msg(t){
+ document.getElementById("message").textContent=t;
+}
 
-async function login(){
+// LOGIN BARU
+async function login() {
+
  const email=document.getElementById("email").value.trim();
  const password=document.getElementById("password").value;
+
+ if(!email || !password){
+  msg("Email dan password wajib diisi.");
+  return;
+ }
+
  msg("Mohon tunggu...");
- const {data,error}=await db.auth.signInWithPassword({email,password});
- if(error){msg(error.message);return}
- showDashboard(data.user);
+
+ try {
+
+  const result=await Promise.race([
+
+   db.auth.signInWithPassword({
+    email:email,
+    password:password
+   }),
+
+   new Promise((_,reject)=>{
+    setTimeout(()=>{
+     reject(new Error("Koneksi terlalu lama. Coba refresh halaman."));
+    },15000);
+   })
+
+  ]);
+
+  if(result.error){
+   msg(result.error.message);
+   return;
+  }
+
+  showDashboard(result.data.user);
+
+ } catch(error) {
+
+  msg("Gagal login: "+error.message);
+
+ }
 }
 
+// DAFTAR AKUN
 async function register(){
+
  const email=document.getElementById("email").value.trim();
  const password=document.getElementById("password").value;
- if(password.length<6){msg("Password minimal 6 karakter");return}
+
+ if(password.length<6){
+  msg("Password minimal 6 karakter");
+  return;
+ }
+
  msg("Memproses pendaftaran...");
- const {data,error}=await db.auth.signUp({email,password});
- if(error){msg(error.message);return}
- if(data.session)showDashboard(data.user);
- else msg("Cek email untuk verifikasi, lalu login.");
+
+ try{
+
+  const {data,error}=await db.auth.signUp({
+   email:email,
+   password:password
+  });
+
+  if(error){
+   msg(error.message);
+   return;
+  }
+
+  if(data.session){
+   showDashboard(data.user);
+  }else{
+   msg("Cek email untuk verifikasi, lalu login.");
+  }
+
+ }catch(error){
+  msg("Gagal daftar: "+error.message);
+ }
 }
 
+// DASHBOARD
 function showDashboard(user){
+
  document.getElementById("auth").classList.add("hidden");
+
  document.getElementById("dashboard").classList.remove("hidden");
+
  document.getElementById("userEmail").textContent=user.email;
+
  document.getElementById("subtitle").textContent="Akun berhasil masuk";
+
  loadNumbers();
 }
 
+// TAMBAH NOMOR
 async function addNumber(){
- const phone=document.getElementById("phone").value.trim();
- const country=document.getElementById("country").value.trim();
- const label=document.getElementById("label").value.trim();
- if(!phone){msg("Nomor wajib diisi");return}
- const {data:{user}}=await db.auth.getUser();
- const {error}=await db.from("virtual_numbers").insert({
-  user_id:user.id,
-  phone_number:phone,
-  country:country,
-  label:label
- });
- if(error){msg(error.message);return}
- document.getElementById("phone").value="";
- document.getElementById("country").value="";
- document.getElementById("label").value="";
- msg("Nomor berhasil disimpan");
- loadNumbers();
+
+ try{
+
+  const phone=document.getElementById("phone").value.trim();
+  const country=document.getElementById("country").value.trim();
+  const label=document.getElementById("label").value.trim();
+
+  if(!phone){
+   msg("Nomor wajib diisi");
+   return;
+  }
+
+  const {data:{user},error:userError}=await db.auth.getUser();
+
+  if(userError || !user){
+   msg("Silakan login kembali.");
+   return;
+  }
+
+  const {error}=await db.from("virtual_numbers").insert({
+   user_id:user.id,
+   phone_number:phone,
+   country:country,
+   label:label
+  });
+
+  if(error){
+   msg(error.message);
+   return;
+  }
+
+  document.getElementById("phone").value="";
+  document.getElementById("country").value="";
+  document.getElementById("label").value="";
+
+  msg("Nomor berhasil disimpan");
+
+  loadNumbers();
+
+ }catch(error){
+  msg("Gagal menyimpan: "+error.message);
+ }
 }
 
+// TAMPILKAN NOMOR
 async function loadNumbers(){
- const {data:{user}}=await db.auth.getUser();
- const {data,error}=await db.from("virtual_numbers")
- .select("*").eq("user_id",user.id).order("id",{ascending:false});
- if(error){msg(error.message);return}
- const list=document.getElementById("numberList");
- list.innerHTML="";
- if(!data.length){list.textContent="Belum ada nomor tersimpan.";return}
- data.forEach(n=>{
-  const div=document.createElement("div");
-  div.className="item";
-  const title=document.createElement("strong");
-  title.textContent=n.phone_number;
-  const detail=document.createElement("p");
-  detail.textContent=(n.country||"")+(n.label?" - "+n.label:"");
-  const del=document.createElement("button");
-  del.textContent="HAPUS";
-  del.onclick=()=>deleteNumber(n.id);
-  div.append(title,detail,del);
-  list.appendChild(div);
- });
+
+ try{
+
+  const {data:{user},error:userError}=await db.auth.getUser();
+
+  if(userError || !user){
+   msg("Sesi login tidak ditemukan.");
+   return;
+  }
+
+  const {data,error}=await db.from("virtual_numbers")
+   .select("*")
+   .eq("user_id",user.id)
+   .order("id",{ascending:false});
+
+  if(error){
+   msg(error.message);
+   return;
+  }
+
+  const list=document.getElementById("numberList");
+
+  list.innerHTML="";
+
+  if(!data.length){
+   list.textContent="Belum ada nomor tersimpan.";
+   return;
+  }
+
+  data.forEach(n=>{
+
+   const div=document.createElement("div");
+   div.className="item";
+
+   const title=document.createElement("strong");
+   title.textContent=n.phone_number;
+
+   const detail=document.createElement("p");
+   detail.textContent=(n.country||"")+(n.label?" - "+n.label:"");
+
+   const del=document.createElement("button");
+   del.textContent="HAPUS";
+   del.onclick=()=>deleteNumber(n.id);
+
+   div.append(title,detail,del);
+
+   list.appendChild(div);
+
+  });
+
+ }catch(error){
+  msg("Gagal memuat nomor: "+error.message);
+ }
 }
 
+// HAPUS NOMOR
 async function deleteNumber(id){
+
  if(!confirm("Hapus nomor ini?"))return;
- const {error}=await db.from("virtual_numbers").delete().eq("id",id);
- if(error){msg(error.message);return}
+
+ const {error}=await db.from("virtual_numbers")
+  .delete()
+  .eq("id",id);
+
+ if(error){
+  msg(error.message);
+  return;
+ }
+
  msg("Nomor dihapus");
+
  loadNumbers();
 }
 
+// LOGOUT
 async function logout(){
+
  await db.auth.signOut();
+
  location.reload();
 }
 
-db.auth.getSession().then(({data})=>{
- if(data.session)showDashboard(data.session.user);
+// CEK SESI LOGIN
+db.auth.getSession().then(({data,error})=>{
+
+ if(error){
+  msg(error.message);
+  return;
+ }
+
+ if(data.session){
+  showDashboard(data.session.user);
+ }
+
+}).catch(error=>{
+ msg("Gagal memuat sesi: "+error.message);
 });
+
 </script>
+
 </body>
 </html>
