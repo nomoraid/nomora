@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOMORA - Dashboard</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b1120;color:#fff;font-family:Arial,sans-serif}
+header{padding:22px;background:#111c32;border-bottom:1px solid #263650}
+.logo{font-size:25px;font-weight:bold;color:#45c5ff}
+header p{color:#9aabc4;font-size:13px}
+main{padding:18px;max-width:800px;margin:auto}
+.card{background:#15223a;padding:18px;border-radius:14px;margin-bottom:16px;border:1px solid #263b5c}
+h2{font-size:18px;margin-top:0}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stat{background:#1b2c49;padding:16px;border-radius:12px}
+.stat b{font-size:25px;color:#45c5ff}
+label{display:block;margin:12px 0 7px;color:#bdcbe0;font-size:13px}
+input,select{width:100%;padding:13px;border:1px solid #344966;border-radius:9px;background:#0d192d;color:white;font-size:15px}
+button{padding:12px 16px;border:0;border-radius:9px;background:#1599df;color:white;font-weight:bold;cursor:pointer}
+button:active{opacity:.7}
+.full{width:100%;margin-top:12px}
+.item{background:#1b2c49;padding:14px;border-radius:10px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.item small{display:block;color:#a8b8ce;margin-top:5px}
+.del{background:#d94b5b;padding:9px 12px}
+.muted{color:#9aabc4;font-size:13px}
+footer{text-align:center;padding:25px;color:#778ba8;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+<div class="logo">NOMORA.</div>
+<p>Virtual Number Management Dashboard</p>
+</header>
+
+<main>
+<div class="stats">
+<div class="stat"><span class="muted">Total Nomor</span><br><b id="total">0</b></div>
+<div class="stat"><span class="muted">Aktivitas</span><br><b id="activities">0</b></div>
+</div>
+
+<section class="card" style="margin-top:18px">
+<h2>＋ Tambah Nomor</h2>
+<label>Nama / Label</label>
+<input id="label" placeholder="Contoh: Nomor utama">
+<label>Negara</label>
+<select id="country">
+<option>Indonesia</option>
+<option>Portugal</option>
+<option>Jerman</option>
+<option>Amerika Serikat</option>
+<option>Inggris</option>
+<option>Lainnya</option>
+</select>
+<label>Nomor telepon</label>
+<input id="phone" type="tel" placeholder="+628123456789">
+<button class="full" onclick="addNumber()">Simpan Nomor</button>
+</section>
+
+<section class="card">
+<h2>Daftar Nomor</h2>
+<input id="search" placeholder="Cari nomor..." oninput="render()">
+<div id="list"></div>
+</section>
+
+<section class="card">
+<h2>Riwayat Aktivitas</h2>
+<div id="history" class="muted">Belum ada aktivitas.</div>
+</section>
+
+<p class="muted">NOMORA hanya mencatat nomor yang kamu miliki atau berhak kelola. Pengiriman SMS dan penerimaan OTP membutuhkan integrasi penyedia layanan resmi.</p>
+</main>
+
+<footer>© 2026 NOMORA Dashboard</footer>
+
+<script>
+let numbers=JSON.parse(localStorage.getItem("nomora_numbers")||"[]");
+let logs=JSON.parse(localStorage.getItem("nomora_logs")||"[]");
+
+function save(){
+localStorage.setItem("nomora_numbers",JSON.stringify(numbers));
+localStorage.setItem("nomora_logs",JSON.stringify(logs));
+}
+
+function activity(text){
+logs.unshift(new Date().toLocaleString("id-ID")+" — "+text);
+logs=logs.slice(0,20);
+save();
+}
+
+function addNumber(){
+let label=document.getElementById("label").value.trim();
+let phone=document.getElementById("phone").value.trim();
+let country=document.getElementById("country").value;
+
+if(!label||!phone){alert("Isi label dan nomor terlebih dahulu!");return;}
+if(!/^\+[1-9]\d{7,14}$/.test(phone)){
+alert("Format nomor salah. Gunakan format internasional, contoh +628123456789");
+return;
+}
+if(numbers.some(n=>n.phone===phone)){
+alert("Nomor sudah terdaftar!");return;
+}
+
+numbers.push({id:Date.now(),label,phone,country});
+activity("Menambahkan nomor "+phone);
+document.getElementById("label").value="";
+document.getElementById("phone").value="";
+render();
+alert("Nomor berhasil disimpan!");
+}
+
+function removeNumber(id){
+if(!confirm("Hapus nomor ini?"))return;
+let item=numbers.find(n=>n.id===id);
+numbers=numbers.filter(n=>n.id!==id);
+activity("Menghapus nomor "+item.phone);
+render();
+}
+
+function render(){
+let q=document.getElementById("search").value.toLowerCase();
+let filtered=numbers.filter(n=>
+(n.label+" "+n.phone+" "+n.country).toLowerCase().includes(q)
+);
+document.getElementById("total").textContent=numbers.length;
+document.getElementById("activities").textContent=logs.length;
+
+document.getElementById("list").innerHTML=filtered.length?
+filtered.map(n=>`
+<div class="item">
+<div><b>${escapeHTML(n.label)}</b>
+<small>${escapeHTML(n.phone)} · ${escapeHTML(n.country)}</small></div>
+<button class="del" onclick="removeNumber(${n.id})">Hapus</button>
+</div>`).join("")
+:'<p class="muted">Belum ada nomor. Tambahkan nomor terlebih dahulu.</p>';
+
+document.getElementById("history").innerHTML=logs.length?
+logs.map(x=>"<p>"+escapeHTML(x)+"</p>").join("")
+:"Belum ada aktivitas.";
+}
+
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,c=>({
+"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+}[c]));
+}
+render();
+</script>
+</body>
+</html>
