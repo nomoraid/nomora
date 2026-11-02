@@ -3,19 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NOMORA - Login</title>
+<title>NOMORA Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
-body{margin:0;background:#0b1120;color:white;font-family:Arial,sans-serif;padding:20px}
-.box{max-width:420px;margin:60px auto;background:#15223a;padding:25px;border-radius:16px}
+body{margin:0;background:#0b1120;color:white;font-family:Arial;padding:20px}
+.box{max-width:500px;margin:35px auto;background:#15223a;padding:22px;border-radius:16px}
 h1{color:#45c5ff;text-align:center}
 p{text-align:center;color:#9aabc4}
-input{width:100%;padding:14px;margin:9px 0;background:#0b1120;border:1px solid #344966;border-radius:9px;color:white}
-button{width:100%;padding:14px;margin-top:12px;background:#1599df;border:0;border-radius:9px;color:white;font-weight:bold}
-.switch{background:transparent;border:1px solid #1599df}
-#message{font-size:13px;line-height:1.5}
+input,button{width:100%;padding:13px;margin:8px 0;border-radius:9px}
+input{background:#0b1120;border:1px solid #344966;color:white}
+button{background:#1599df;border:0;color:white;font-weight:bold}
+.secondary{background:#344966}
 .hidden{display:none}
+.item{background:#0b1120;padding:12px;margin:10px 0;border-radius:9px}
+.item button{background:#c0392b}
+#message{font-size:13px}
 </style>
 </head>
 <body>
@@ -26,100 +29,114 @@ button{width:100%;padding:14px;margin-top:12px;background:#1599df;border:0;borde
 
 <div id="auth">
 <input id="email" type="email" placeholder="Alamat email">
-<input id="password" type="password" placeholder="Password (minimal 6 karakter)">
-<input id="username" class="hidden" placeholder="Nama pengguna">
-
-<button id="mainBtn" onclick="submitAuth()">LOGIN</button>
-<button class="switch" onclick="toggleMode()">Belum punya akun? Daftar</button>
+<input id="password" type="password" placeholder="Password minimal 6 karakter">
+<button onclick="login()">LOGIN</button>
+<button class="secondary" onclick="register()">DAFTAR AKUN</button>
 </div>
 
 <div id="dashboard" class="hidden">
-<h2>Selamat datang!</h2>
+<h2>Dashboard</h2>
 <p id="userEmail"></p>
-<p>Akun NOMORA berhasil terhubung.</p>
-<button onclick="logout()">LOGOUT</button>
+
+<h3>Tambah nomor milik kamu</h3>
+<input id="phone" placeholder="Contoh: +628123456789">
+<input id="country" placeholder="Negara">
+<input id="label" placeholder="Keterangan">
+<button onclick="addNumber()">SIMPAN NOMOR</button>
+
+<h3>Daftar nomor</h3>
+<div id="numberList">Memuat...</div>
+
+<button class="secondary" onclick="logout()">LOGOUT</button>
 </div>
 
 <p id="message"></p>
 </div>
 
 <script>
-const SUPABASE_URL = "https://rcrpnpjyyakscwfbipez.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcnBucGp5eWFrc2N3ZmJpcGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTkwMjksImV4cCI6MjEwOTE5NTAyOX0.6TQ9CKGl_s58Dbem2PkSTIaLNP3Hz06qASgtyyUVzlM";
+const URL="https://rcrpnpjyyakscwfbipez.supabase.co";
+const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcnBucGp5eWFrc2N3ZmJpcGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTkwMjksImV4cCI6MjEwOTE5NTAyOX0.6TQ9CKGl_s58Dbem2PkSTIaLNP3Hz06qASgtyyUVzlM";
+const db=window.supabase.createClient(URL,KEY);
 
-const db = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+function msg(t){document.getElementById("message").textContent=t}
 
-let isRegister = false;
-
-function toggleMode(){
- isRegister = !isRegister;
- document.getElementById("username").classList.toggle("hidden",!isRegister);
- document.getElementById("mainBtn").textContent = isRegister ? "DAFTAR AKUN" : "LOGIN";
- document.getElementById("subtitle").textContent = isRegister ? "Buat akun NOMORA baru" : "Silakan masuk ke akun kamu";
- document.querySelector(".switch").textContent = isRegister ? "Sudah punya akun? Login" : "Belum punya akun? Daftar";
- document.getElementById("message").textContent = "";
+async function login(){
+ const email=document.getElementById("email").value.trim();
+ const password=document.getElementById("password").value;
+ msg("Mohon tunggu...");
+ const {data,error}=await db.auth.signInWithPassword({email,password});
+ if(error){msg(error.message);return}
+ showDashboard(data.user);
 }
 
-function showMessage(text){
- document.getElementById("message").textContent = text;
-}
-
-async function submitAuth(){
- const email = document.getElementById("email").value.trim();
- const password = document.getElementById("password").value;
- const username = document.getElementById("username").value.trim();
-
- if(!email || !password){
-  showMessage("Email dan password wajib diisi.");
-  return;
- }
-
- if(password.length < 6){
-  showMessage("Password minimal 6 karakter.");
-  return;
- }
-
- const btn = document.getElementById("mainBtn");
- btn.disabled = true;
- showMessage("Mohon tunggu...");
-
- try{
-  if(isRegister){
-   const {data,error} = await db.auth.signUp({
-    email,
-    password,
-    options:{
-     data:{username},
-     emailRedirectTo:window.location.origin + window.location.pathname
-    }
-   });
-
-   if(error) throw error;
-
-   if(data.session){
-    showDashboard(data.user);
-   }else{
-    showMessage("Pendaftaran berhasil! Silakan cek email untuk verifikasi akun, lalu login.");
-   }
-
-  }else{
-   const {data,error} = await db.auth.signInWithPassword({email,password});
-   if(error) throw error;
-   showDashboard(data.user);
-  }
- }catch(error){
-  showMessage("Gagal: " + error.message);
- }finally{
-  btn.disabled = false;
- }
+async function register(){
+ const email=document.getElementById("email").value.trim();
+ const password=document.getElementById("password").value;
+ if(password.length<6){msg("Password minimal 6 karakter");return}
+ msg("Memproses pendaftaran...");
+ const {data,error}=await db.auth.signUp({email,password});
+ if(error){msg(error.message);return}
+ if(data.session)showDashboard(data.user);
+ else msg("Cek email untuk verifikasi, lalu login.");
 }
 
 function showDashboard(user){
  document.getElementById("auth").classList.add("hidden");
  document.getElementById("dashboard").classList.remove("hidden");
- document.getElementById("userEmail").textContent = user.email;
- document.getElementById("subtitle").textContent = "Akun kamu sudah masuk";
- showMessage("");
+ document.getElementById("userEmail").textContent=user.email;
+ document.getElementById("subtitle").textContent="Akun berhasil masuk";
+ loadNumbers();
+}
+
+async function addNumber(){
+ const phone=document.getElementById("phone").value.trim();
+ const country=document.getElementById("country").value.trim();
+ const label=document.getElementById("label").value.trim();
+ if(!phone){msg("Nomor wajib diisi");return}
+ const {data:{user}}=await db.auth.getUser();
+ const {error}=await db.from("virtual_numbers").insert({
+  user_id:user.id,
+  phone_number:phone,
+  country:country,
+  label:label
+ });
+ if(error){msg(error.message);return}
+ document.getElementById("phone").value="";
+ document.getElementById("country").value="";
+ document.getElementById("label").value="";
+ msg("Nomor berhasil disimpan");
+ loadNumbers();
+}
+
+async function loadNumbers(){
+ const {data:{user}}=await db.auth.getUser();
+ const {data,error}=await db.from("virtual_numbers")
+ .select("*").eq("user_id",user.id).order("id",{ascending:false});
+ if(error){msg(error.message);return}
+ const list=document.getElementById("numberList");
+ list.innerHTML="";
+ if(!data.length){list.textContent="Belum ada nomor tersimpan.";return}
+ data.forEach(n=>{
+  const div=document.createElement("div");
+  div.className="item";
+  const title=document.createElement("strong");
+  title.textContent=n.phone_number;
+  const detail=document.createElement("p");
+  detail.textContent=(n.country||"")+(n.label?" - "+n.label:"");
+  const del=document.createElement("button");
+  del.textContent="HAPUS";
+  del.onclick=()=>deleteNumber(n.id);
+  div.append(title,detail,del);
+  list.appendChild(div);
+ });
+}
+
+async function deleteNumber(id){
+ if(!confirm("Hapus nomor ini?"))return;
+ const {error}=await db.from("virtual_numbers").delete().eq("id",id);
+ if(error){msg(error.message);return}
+ msg("Nomor dihapus");
+ loadNumbers();
 }
 
 async function logout(){
@@ -127,19 +144,9 @@ async function logout(){
  location.reload();
 }
 
-async function checkSession(){
- const {data} = await db.auth.getSession();
- if(data.session){
-  showDashboard(data.session.user);
- }
-}
-
-db.auth.onAuthStateChange((event,session)=>{
- if(session) showDashboard(session.user);
+db.auth.getSession().then(({data})=>{
+ if(data.session)showDashboard(data.session.user);
 });
-
-checkSession();
 </script>
-
 </body>
 </html>
