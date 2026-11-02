@@ -3,311 +3,548 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NOMORA Dashboard</title>
+<title>NOMORA</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#0b1120;color:white;font-family:Arial;padding:20px}
-.box{max-width:500px;margin:35px auto;background:#15223a;padding:22px;border-radius:16px}
-h1{color:#45c5ff;text-align:center}
-p{text-align:center;color:#9aabc4}
-input,button{width:100%;padding:13px;margin:8px 0;border-radius:9px}
-input{background:#0b1120;border:1px solid #344966;color:white}
-button{background:#1599df;border:0;color:white;font-weight:bold}
-.secondary{background:#344966}
-.hidden{display:none}
-.item{background:#0b1120;padding:12px;margin:10px 0;border-radius:9px}
-.item button{background:#c0392b}
-#message{font-size:13px}
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 20px;
+  background: #0b1120;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.box {
+  max-width: 500px;
+  margin: 35px auto;
+  padding: 22px;
+  background: #15223a;
+  border-radius: 16px;
+}
+
+h1 {
+  color: #45c5ff;
+  text-align: center;
+}
+
+h2, h3 {
+  color: #45c5ff;
+}
+
+p {
+  color: #9aabc4;
+  text-align: center;
+}
+
+input, button {
+  width: 100%;
+  padding: 14px;
+  margin: 8px 0;
+  border-radius: 9px;
+  font-size: 15px;
+}
+
+input {
+  background: #0b1120;
+  border: 1px solid #344966;
+  color: white;
+}
+
+button {
+  background: #1599df;
+  border: none;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.secondary {
+  background: #344966;
+}
+
+.danger {
+  background: #c0392b;
+}
+
+.hidden {
+  display: none;
+}
+
+.item {
+  background: #0b1120;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 9px;
+  overflow-wrap: anywhere;
+}
+
+#message {
+  font-size: 14px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
 </style>
 </head>
 
 <body>
 
 <div class="box">
+
 <h1>NOMORA</h1>
+
 <p id="subtitle">Silakan masuk ke akun kamu</p>
 
 <div id="auth">
-<input id="email" type="email" placeholder="Alamat email">
-<input id="password" type="password" placeholder="Password minimal 6 karakter">
+
+<input
+  id="email"
+  type="email"
+  placeholder="Alamat email"
+>
+
+<input
+  id="password"
+  type="password"
+  placeholder="Password"
+>
 
 <button onclick="login()">LOGIN</button>
-<button class="secondary" onclick="register()">DAFTAR AKUN</button>
+
+<button class="secondary" onclick="register()">
+DAFTAR AKUN
+</button>
+
 </div>
 
 <div id="dashboard" class="hidden">
+
 <h2>Dashboard</h2>
+
 <p id="userEmail"></p>
 
 <h3>Tambah nomor milik kamu</h3>
-<input id="phone" placeholder="Contoh: +628123456789">
+
+<input id="phone" placeholder="Nomor telepon">
+
 <input id="country" placeholder="Negara">
+
 <input id="label" placeholder="Keterangan">
 
-<button onclick="addNumber()">SIMPAN NOMOR</button>
+<button onclick="addNumber()">
+SIMPAN NOMOR
+</button>
 
 <h3>Daftar nomor</h3>
-<div id="numberList">Memuat...</div>
 
-<button class="secondary" onclick="logout()">LOGOUT</button>
+<div id="numberList">
+Memuat...
+</div>
+
+<button class="secondary" onclick="logout()">
+LOGOUT
+</button>
+
 </div>
 
 <p id="message"></p>
+
 </div>
 
 <script>
 
-const URL="https://rcrpnpjyyakscwfbipez.supabase.co";
+// ==================================
+// 1. KONEKSI SUPABASE
+// ==================================
 
-const KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcnBucGp5eWFrc2N3ZmJpcGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTkwMjksImV4cCI6MjEwOTE5NTAyOX0.6TQ9CKGl_s58Dbem2PkSTIaLNP3Hz06qASgtyyUVzlM";
+const SUPABASE_URL =
+"https://rcrpnpjyyakscwfbipez.supabase.co";
 
-const db=window.supabase.createClient(URL,KEY);
+const SUPABASE_KEY =
+"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcnBucGp5eWFrc2N3ZmJpcGV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM2MTkwMjksImV4cCI6MjEwOTE5NTAyOX0.6TQ9CKGl_s58Dbem2PkSTIaLNP3Hz06qASgtyyUVzlM";
 
-function msg(t){
- document.getElementById("message").textContent=t;
+window.nomoraDb = null;
+
+function msg(text) {
+  document.getElementById("message").textContent = text;
 }
 
-// LOGIN BARU
+if (!window.supabase) {
+
+  msg("Koneksi Supabase gagal dimuat. Periksa internet.");
+
+} else {
+
+  window.nomoraDb = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+}
+
+// ==================================
+// 2. LOGIN
+// ==================================
+
 async function login() {
 
- const email=document.getElementById("email").value.trim();
- const password=document.getElementById("password").value;
-
- if(!email || !password){
-  msg("Email dan password wajib diisi.");
-  return;
- }
-
- msg("Mohon tunggu...");
-
- try {
-
-  const result=await Promise.race([
-
-   db.auth.signInWithPassword({
-    email:email,
-    password:password
-   }),
-
-   new Promise((_,reject)=>{
-    setTimeout(()=>{
-     reject(new Error("Koneksi terlalu lama. Coba refresh halaman."));
-    },15000);
-   })
-
-  ]);
-
-  if(result.error){
-   msg(result.error.message);
-   return;
+  if (!window.nomoraDb) {
+    msg("Koneksi Supabase belum tersedia.");
+    return;
   }
 
-  showDashboard(result.data.user);
+  const email =
+    document.getElementById("email").value.trim();
 
- } catch(error) {
+  const password =
+    document.getElementById("password").value;
 
-  msg("Gagal login: "+error.message);
+  if (!email || !password) {
+    msg("Email dan password wajib diisi.");
+    return;
+  }
 
- }
+  msg("Mohon tunggu...");
+
+  try {
+
+    const result = await Promise.race([
+
+      window.nomoraDb.auth.signInWithPassword({
+        email: email,
+        password: password
+      }),
+
+      new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(
+            new Error("Koneksi terlalu lama. Coba lagi.")
+          );
+        }, 15000);
+      })
+
+    ]);
+
+    if (result.error) {
+      msg("Login gagal: " + result.error.message);
+      return;
+    }
+
+    showDashboard(result.data.user);
+
+  } catch (error) {
+
+    msg("Gagal login: " + error.message);
+
+  }
+
 }
 
-// DAFTAR AKUN
-async function register(){
+// ==================================
+// 3. DAFTAR AKUN
+// ==================================
 
- const email=document.getElementById("email").value.trim();
- const password=document.getElementById("password").value;
+async function register() {
 
- if(password.length<6){
-  msg("Password minimal 6 karakter");
-  return;
- }
-
- msg("Memproses pendaftaran...");
-
- try{
-
-  const {data,error}=await db.auth.signUp({
-   email:email,
-   password:password
-  });
-
-  if(error){
-   msg(error.message);
-   return;
+  if (!window.nomoraDb) {
+    msg("Koneksi Supabase belum tersedia.");
+    return;
   }
 
-  if(data.session){
-   showDashboard(data.user);
-  }else{
-   msg("Cek email untuk verifikasi, lalu login.");
+  const email =
+    document.getElementById("email").value.trim();
+
+  const password =
+    document.getElementById("password").value;
+
+  if (!email || !password) {
+    msg("Email dan password wajib diisi.");
+    return;
   }
 
- }catch(error){
-  msg("Gagal daftar: "+error.message);
- }
+  if (password.length < 6) {
+    msg("Password minimal 6 karakter.");
+    return;
+  }
+
+  msg("Memproses pendaftaran...");
+
+  try {
+
+    const { data, error } =
+      await window.nomoraDb.auth.signUp({
+        email: email,
+        password: password
+      });
+
+    if (error) {
+      msg("Pendaftaran gagal: " + error.message);
+      return;
+    }
+
+    if (data.session) {
+      showDashboard(data.user);
+    } else {
+      msg("Cek email untuk verifikasi, lalu login.");
+    }
+
+  } catch (error) {
+
+    msg("Gagal daftar: " + error.message);
+
+  }
+
 }
 
-// DASHBOARD
-function showDashboard(user){
+// ==================================
+// 4. DASHBOARD
+// ==================================
 
- document.getElementById("auth").classList.add("hidden");
+function showDashboard(user) {
 
- document.getElementById("dashboard").classList.remove("hidden");
+  document.getElementById("auth")
+    .classList.add("hidden");
 
- document.getElementById("userEmail").textContent=user.email;
+  document.getElementById("dashboard")
+    .classList.remove("hidden");
 
- document.getElementById("subtitle").textContent="Akun berhasil masuk";
+  document.getElementById("userEmail")
+    .textContent = user.email;
 
- loadNumbers();
-}
-
-// TAMBAH NOMOR
-async function addNumber(){
-
- try{
-
-  const phone=document.getElementById("phone").value.trim();
-  const country=document.getElementById("country").value.trim();
-  const label=document.getElementById("label").value.trim();
-
-  if(!phone){
-   msg("Nomor wajib diisi");
-   return;
-  }
-
-  const {data:{user},error:userError}=await db.auth.getUser();
-
-  if(userError || !user){
-   msg("Silakan login kembali.");
-   return;
-  }
-
-  const {error}=await db.from("virtual_numbers").insert({
-   user_id:user.id,
-   phone_number:phone,
-   country:country,
-   label:label
-  });
-
-  if(error){
-   msg(error.message);
-   return;
-  }
-
-  document.getElementById("phone").value="";
-  document.getElementById("country").value="";
-  document.getElementById("label").value="";
-
-  msg("Nomor berhasil disimpan");
+  document.getElementById("subtitle")
+    .textContent = "Akun berhasil masuk";
 
   loadNumbers();
 
- }catch(error){
-  msg("Gagal menyimpan: "+error.message);
- }
 }
 
-// TAMPILKAN NOMOR
-async function loadNumbers(){
+// ==================================
+// 5. TAMBAH NOMOR
+// ==================================
 
- try{
+async function addNumber() {
 
-  const {data:{user},error:userError}=await db.auth.getUser();
+  try {
 
-  if(userError || !user){
-   msg("Sesi login tidak ditemukan.");
-   return;
+    const phone =
+      document.getElementById("phone").value.trim();
+
+    const country =
+      document.getElementById("country").value.trim();
+
+    const label =
+      document.getElementById("label").value.trim();
+
+    if (!phone) {
+      msg("Nomor wajib diisi.");
+      return;
+    }
+
+    const { data, error: userError } =
+      await window.nomoraDb.auth.getUser();
+
+    if (userError || !data.user) {
+      msg("Silakan login kembali.");
+      return;
+    }
+
+    const { error } =
+      await window.nomoraDb
+        .from("virtual_numbers")
+        .insert({
+          user_id: data.user.id,
+          phone_number: phone,
+          country: country,
+          label: label
+        });
+
+    if (error) {
+      msg(error.message);
+      return;
+    }
+
+    document.getElementById("phone").value = "";
+    document.getElementById("country").value = "";
+    document.getElementById("label").value = "";
+
+    msg("Nomor berhasil disimpan.");
+
+    loadNumbers();
+
+  } catch (error) {
+
+    msg("Gagal menyimpan: " + error.message);
+
   }
 
-  const {data,error}=await db.from("virtual_numbers")
-   .select("*")
-   .eq("user_id",user.id)
-   .order("id",{ascending:false});
+}
 
-  if(error){
-   msg(error.message);
-   return;
+// ==================================
+// 6. TAMPILKAN NOMOR
+// ==================================
+
+async function loadNumbers() {
+
+  try {
+
+    const { data: userData, error: userError } =
+      await window.nomoraDb.auth.getUser();
+
+    if (userError || !userData.user) {
+      msg("Sesi login tidak ditemukan.");
+      return;
+    }
+
+    const { data, error } =
+      await window.nomoraDb
+        .from("virtual_numbers")
+        .select("*")
+        .eq("user_id", userData.user.id)
+        .order("id", { ascending: false });
+
+    if (error) {
+      msg(error.message);
+      return;
+    }
+
+    const list =
+      document.getElementById("numberList");
+
+    list.innerHTML = "";
+
+    if (!data.length) {
+      list.textContent = "Belum ada nomor tersimpan.";
+      return;
+    }
+
+    data.forEach(number => {
+
+      const div = document.createElement("div");
+      div.className = "item";
+
+      const title = document.createElement("strong");
+      title.textContent = number.phone_number;
+
+      const detail = document.createElement("p");
+
+      detail.textContent =
+        (number.country || "") +
+        (number.label ? " - " + number.label : "");
+
+      const button = document.createElement("button");
+
+      button.textContent = "HAPUS";
+      button.className = "danger";
+
+      button.onclick = function() {
+        deleteNumber(number.id);
+      };
+
+      div.append(title, detail, button);
+
+      list.appendChild(div);
+
+    });
+
+  } catch (error) {
+
+    msg("Gagal memuat nomor: " + error.message);
+
   }
 
-  const list=document.getElementById("numberList");
+}
 
-  list.innerHTML="";
+// ==================================
+// 7. HAPUS NOMOR
+// ==================================
 
-  if(!data.length){
-   list.textContent="Belum ada nomor tersimpan.";
-   return;
+async function deleteNumber(id) {
+
+  if (!confirm("Hapus nomor ini?")) {
+    return;
   }
 
-  data.forEach(n=>{
+  try {
 
-   const div=document.createElement("div");
-   div.className="item";
+    const { error } =
+      await window.nomoraDb
+        .from("virtual_numbers")
+        .delete()
+        .eq("id", id);
 
-   const title=document.createElement("strong");
-   title.textContent=n.phone_number;
+    if (error) {
+      msg(error.message);
+      return;
+    }
 
-   const detail=document.createElement("p");
-   detail.textContent=(n.country||"")+(n.label?" - "+n.label:"");
+    msg("Nomor berhasil dihapus.");
 
-   const del=document.createElement("button");
-   del.textContent="HAPUS";
-   del.onclick=()=>deleteNumber(n.id);
+    loadNumbers();
 
-   div.append(title,detail,del);
+  } catch (error) {
 
-   list.appendChild(div);
+    msg("Gagal menghapus: " + error.message);
 
-  });
+  }
 
- }catch(error){
-  msg("Gagal memuat nomor: "+error.message);
- }
 }
 
-// HAPUS NOMOR
-async function deleteNumber(id){
+// ==================================
+// 8. LOGOUT
+// ==================================
 
- if(!confirm("Hapus nomor ini?"))return;
+async function logout() {
 
- const {error}=await db.from("virtual_numbers")
-  .delete()
-  .eq("id",id);
+  const { error } =
+    await window.nomoraDb.auth.signOut();
 
- if(error){
-  msg(error.message);
-  return;
- }
+  if (error) {
+    msg(error.message);
+    return;
+  }
 
- msg("Nomor dihapus");
+  location.reload();
 
- loadNumbers();
 }
 
-// LOGOUT
-async function logout(){
+// ==================================
+// 9. CEK SESI
+// ==================================
 
- await db.auth.signOut();
+async function checkSession() {
 
- location.reload();
+  if (!window.nomoraDb) {
+    return;
+  }
+
+  try {
+
+    const { data, error } =
+      await window.nomoraDb.auth.getSession();
+
+    if (error) {
+      msg(error.message);
+      return;
+    }
+
+    if (data.session) {
+      showDashboard(data.session.user);
+    }
+
+  } catch (error) {
+
+    msg("Gagal memuat sesi: " + error.message);
+
+  }
+
 }
 
-// CEK SESI LOGIN
-db.auth.getSession().then(({data,error})=>{
-
- if(error){
-  msg(error.message);
-  return;
- }
-
- if(data.session){
-  showDashboard(data.session.user);
- }
-
-}).catch(error=>{
- msg("Gagal memuat sesi: "+error.message);
-});
+checkSession();
 
 </script>
 
